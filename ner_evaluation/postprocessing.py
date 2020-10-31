@@ -15,7 +15,7 @@ def select_max_context_tokens(y_pred, prediction_mask, token_is_max_context):
     y_pred: [seq_length] or [sum(prediction_mask)]. Shape depends on whether the
         BERT model has a CRF layer.
     prediction_mask: [seq_length]
-    token_is_max_context: Variable length. Ranges from [doc_stride] up to 
+    token_is_max_context: Variable length. Ranges from [doc_stride] up to
         [seg_length - 1].
     """
     # Remove [CLS] token from prediction_mask
@@ -127,8 +127,6 @@ class OutputComposer:
             raise MissingPartialOutputError(msg) from None
 
         complete_output = concatenate(example_partial_outputs)
-        assert len(complete_output) == len(
-            self.examples[example_ix].doc_tokens)
 
         if self.output_transform_fn is not None:
             transformed_output = self.output_transform_fn(complete_output)

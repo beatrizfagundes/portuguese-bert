@@ -15,27 +15,24 @@ from pytorch_transformers.tokenization_bert import BertTokenizer
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
-from dataset import get_dataset
-from eval_tools import (SequenceMetrics, write_conll_prediction_file,
+from .dataset import get_dataset
+from .eval_tools import (SequenceMetrics, write_conll_prediction_file,
                         write_outputs_to_json)
-from postprocessing import OutputComposer
-from preprocessing import (Example, InputSpan, get_features_from_examples,
+from .postprocessing import OutputComposer
+from .preprocessing import (Example, InputSpan, get_features_from_examples,
                            read_examples)
-from tag_encoder import NERTagsEncoder
-from trainer import evaluate
-from utils import load_model
+from .tag_encoder import NERTagsEncoder
+from .trainer import evaluate
+from .utils import load_model
 
 logger = logging.getLogger(__name__)
 
 
-def convert_txt_to_tmp_json_file(txt_file: str) -> str:
-    """Converts a txt file with inference content to a JSON file with schema
+def convert_txt_to_tmp_json_file(txt_inference: str) -> str:
+    """Converts a txt with inference content to a JSON file with schema
     expected by read_examples. Returns a filename to the temp JSON file."""
-    with open(txt_file) as fd:
-        text = fd.read()
-
     tmp_file = tempfile.NamedTemporaryFile(mode='w', delete=False)
-    json_data = [{"doc_id": 0, "doc_text": text}]
+    json_data = [{"doc_id": 0, "doc_text": txt_inference}]
 
     tmp_file.write(json.dumps(json_data))
     tmp_file.close()
@@ -73,15 +70,93 @@ def load_and_cache_examples(
     return dataset, examples, features
 
 
+def run_inference(args, input_text):
+    logging.basicConfig()
+
+    if torch.cuda.is_available and not args.no_cuda:
+        args.device = torch.device("cuda")
+        args.n_gpu = 1
+    else:
+        args.device = torch.device("cpu")
+        args.n_gpu = 0
+
+    tokenizer_path = args.tokenizer_model or args.bert_model
+    tokenizer = BertTokenizer.from_pretrained(
+        tokenizer_path, do_lower_case=args.do_lower_case)
+
+    # Instantiate NER Tag encoder
+    tag_encoder = NERTagsEncoder.from_labels_file(
+        args.labels_file, scheme=args.scheme.upper())
+
+    args.num_labels = tag_encoder.num_labels
+    args.override_cache = True
+
+    # Load a pretrained model
+    model = load_model(args, args.bert_model, training=False)
+    model.to(args.device)
+
+    if input_text:
+        args.inference_file = convert_txt_to_tmp_json_file(input_text)
+    else:
+        args.inference_file = args.input_file
+
+    args.override_cache = True
+
+    dataset, examples, features = load_and_cache_examples(
+        args.inference_file,
+        args=args,
+        tokenizer=tokenizer,
+        tag_encoder=tag_encoder,
+        mode='inference',
+    )
+
+    output_composer = OutputComposer(
+        examples,
+        features,
+        output_transform_fn=tag_encoder.convert_ids_to_tags)
+
+    logger.info("***** Running predictions *****")
+    logger.info("  Num orig examples = %d", len(examples))
+    logger.info("  Num split examples = %d", len(features))
+    logger.info("  Batch size = %d", args.batch_size)
+
+    # Run prediction for full data
+    dataloader = DataLoader(dataset,
+                            batch_size=args.batch_size,
+                            num_workers=os.cpu_count())
+
+    model.frozen_bert = False
+
+    metrics = evaluate(
+        args,
+        model,
+        tqdm(dataloader, desc="Prediction"),
+        output_composer=output_composer,
+        sequence_metrics=SequenceMetrics([]),  # Empty metrics
+        reset=True,
+    )
+
+    # Get predictions for all examples
+    all_y_pred_raw = output_composer.get_outputs()
+    # Filter invalid predictions
+    all_y_pred = [tag_encoder.decode_valid(y_pred)
+                  for y_pred in all_y_pred_raw]
+
+    # Write predictions to output file
+    if args.output_format == 'conll':
+        write_conll_prediction_file(args.output_file, examples, all_y_pred)
+
+    elif args.output_format == 'json':
+        output_txt = write_outputs_to_json(args.output_file, examples, all_y_pred)
+        if output_txt:
+            return output_txt
+
+
 if __name__ == "__main__":
 
     parser = ArgumentParser("NER inference CLI")
 
     # Model and hyperparameters
-    parser.add_argument("--input_file",
-                        required=True,
-                        help="File to load examples for inference (JSON or "
-                             "txt).")
     parser.add_argument("--output_file",
                         default='-',
                         help="File to save prediction results. Defaults to "
@@ -149,80 +224,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.local_rank = -1
 
-    logging.basicConfig()
-
-    if torch.cuda.is_available and not args.no_cuda:
-        args.device = torch.device("cuda")
-        args.n_gpu = 1
-    else:
-        args.device = torch.device("cpu")
-        args.n_gpu = 0
-
-    tokenizer_path = args.tokenizer_model or args.bert_model
-    tokenizer = BertTokenizer.from_pretrained(
-        tokenizer_path, do_lower_case=args.do_lower_case)
-
-    # Instantiate NER Tag encoder
-    tag_encoder = NERTagsEncoder.from_labels_file(
-        args.labels_file, scheme=args.scheme.upper())
-
-    args.num_labels = tag_encoder.num_labels
-    args.override_cache = True
-
-    # Load a pretrained model
-    model = load_model(args, args.bert_model, training=False)
-    model.to(args.device)
-
-    if args.input_file.endswith('.txt'):
-        args.inference_file = convert_txt_to_tmp_json_file(args.input_file)
-    else:
-        args.inference_file = args.input_file
-
-    args.override_cache = True
-
-    dataset, examples, features = load_and_cache_examples(
-        args.inference_file,
-        args=args,
-        tokenizer=tokenizer,
-        tag_encoder=tag_encoder,
-        mode='inference',
-    )
-
-    output_composer = OutputComposer(
-        examples,
-        features,
-        output_transform_fn=tag_encoder.convert_ids_to_tags)
-
-    logger.info("***** Running predictions *****")
-    logger.info("  Num orig examples = %d", len(examples))
-    logger.info("  Num split examples = %d", len(features))
-    logger.info("  Batch size = %d", args.batch_size)
-
-    # Run prediction for full data
-    dataloader = DataLoader(dataset,
-                            batch_size=args.batch_size,
-                            num_workers=os.cpu_count())
-
-    model.frozen_bert = False
-
-    metrics = evaluate(
-        args,
-        model,
-        tqdm(dataloader, desc="Prediction"),
-        output_composer=output_composer,
-        sequence_metrics=SequenceMetrics([]),  # Empty metrics
-        reset=True,
-    )
-
-    # Get predictions for all examples
-    all_y_pred_raw = output_composer.get_outputs()
-    # Filter invalid predictions
-    all_y_pred = [tag_encoder.decode_valid(y_pred)
-                  for y_pred in all_y_pred_raw]
-
-    # Write predictions to output file
-    if args.output_format == 'conll':
-        write_conll_prediction_file(args.output_file, examples, all_y_pred)
-
-    elif args.output_format == 'json':
-        write_outputs_to_json(args.output_file, examples, all_y_pred)
+    input_text = ''
+    if args.input_file and args.input_file.endswith('.txt'):
+        with open(args.input_file, 'r') as f:
+            input_text = f.read()
+    run_inference(args, input_text)

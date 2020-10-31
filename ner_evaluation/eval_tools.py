@@ -316,5 +316,8 @@ def write_outputs_to_json(out_file: str,
             'entities': predicted_entities,
         })
 
+    if out_file == '-':
+        return output
+
     with smart_open(out_file) as fd:
         json.dump(output, fd)
