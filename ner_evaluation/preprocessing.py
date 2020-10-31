@@ -7,8 +7,8 @@ from argparse import Namespace
 from typing import (Dict, List, Optional)
 import torch
 
-from tag_encoder import NERTagsEncoder, SCHEMES
-from tokenization import (
+from .tag_encoder import NERTagsEncoder, SCHEMES
+from .tokenization import (
     Token,
     TokenizerWithAlignment,
     reconstruct_text_from_tokens,
