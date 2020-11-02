@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-setup(name='portuguese-bert',
+setup(name='portuguese_bert',
       packages=find_packages(),
       install_requires=[
           'pytorch-transformers==1.1.0', 'seqeval==0.0.12', 'jsonlines==1.2.0',
