@@ -152,80 +152,80 @@ def run_inference(args, input_text):
             return output_txt
 
 
-if __name__ == "__main__":
-
-    parser = ArgumentParser("NER inference CLI")
-
-    # Model and hyperparameters
-    parser.add_argument("--output_file",
-                        default='-',
-                        help="File to save prediction results. Defaults to "
-                             "stdout.")
-    parser.add_argument("--output_format",
-                        choices=("json", "conll"),
-                        default="json",
-                        help="Format to save the predictions (json or conll). "
-                             "Defaults to json.")
-
-    parser.add_argument("--bert_model", default=None, type=str, required=True,
-                        help="Bert pre-trained model name or path to a "
-                        "checkpoint directory.")
-    parser.add_argument("--tokenizer_model", default=None, type=str,
-                        required=False,
-                        help="Path to tokenizer files. If empty, defaults to "
-                        "--bert_model.")
-    parser.add_argument("--do_lower_case",
-                        action='store_true',
-                        help="Whether to lower case the input text. True for "
-                        "uncased models, False for cased models.")
-    parser.add_argument("--max_seq_length", default=512, type=int,
-                        help="The maximum total input sequence length after "
-                        "WordPiece tokenization. Sequences longer than this "
-                        "will be split into multiple spans, and sequences "
-                        "shorter than this will be padded.")
-    parser.add_argument("--doc_stride", default=128, type=int,
-                        help="When splitting up a long document into chunks, "
-                        "how much stride to take between chunks.")
-    parser.add_argument('--labels_file',
-                        required=True,
-                        help="File with all NER classes to be considered, one "
-                        "per line.")
-    parser.add_argument('--scheme',
-                        default='bio', help='NER tagging scheme (BIO|BILUO).')
-    parser.add_argument('--no_crf',
-                        action='store_true',
-                        help='Remove the CRF layer (use plain BERT or '
-                        'BERT-LSTM).')
-    parser.add_argument('--pooler',
-                        default='last',
-                        help='Pooling strategy for extracting BERT encoded '
-                        'features from last BERT layers. '
-                        'One of "last", "sum" or "concat".')
-    parser.add_argument('--freeze_bert',
-                        action='store_true',
-                        help="Freeze BERT layers' parameters. If True, uses "
-                        "either a BERT-LSTM or BERT-LSTM-CRF model.")
-    parser.add_argument('--lstm_hidden_size',
-                        type=int,
-                        default=100,
-                        help=('Hidden dimension of the LSTM (only used when '
-                              'the BERT model is frozen.'))
-    parser.add_argument('--lstm_layers',
-                        type=int,
-                        default=1,
-                        help=('Number of LSTM layers (only used when the BERT '
-                              'model is frozen.'))
-    parser.add_argument('--no_cuda', action='store_true',
-                        help='Disables CUDA devices for inference.')
-    parser.add_argument('--batch_size', type=int,
-                        default=1, help='Batch size.')
-    parser.add_argument('--verbose_logging', action='store_true')
-
-    args = parser.parse_args()
-    args.local_rank = -1
-
-    input_text = ''
-    if args.input_file and args.input_file.endswith('.txt'):
-        with open(args.input_file, 'r') as f:
-            input_text = f.read()
-    run_inference(args, input_text)
+#if __name__ == "__main__":
+#
+#    parser = ArgumentParser("NER inference CLI")
+#
+#    # Model and hyperparameters
+#    parser.add_argument("--output_file",
+#                        default='-',
+#                        help="File to save prediction results. Defaults to "
+#                             "stdout.")
+#    parser.add_argument("--output_format",
+#                        choices=("json", "conll"),
+#                        default="json",
+#                        help="Format to save the predictions (json or conll). "
+#                             "Defaults to json.")
+#
+#    parser.add_argument("--bert_model", default=None, type=str, required=True,
+#                        help="Bert pre-trained model name or path to a "
+#                        "checkpoint directory.")
+#    parser.add_argument("--tokenizer_model", default=None, type=str,
+#                        required=False,
+#                        help="Path to tokenizer files. If empty, defaults to "
+#                        "--bert_model.")
+#    parser.add_argument("--do_lower_case",
+#                        action='store_true',
+#                        help="Whether to lower case the input text. True for "
+#                        "uncased models, False for cased models.")
+#    parser.add_argument("--max_seq_length", default=512, type=int,
+#                        help="The maximum total input sequence length after "
+#                        "WordPiece tokenization. Sequences longer than this "
+#                        "will be split into multiple spans, and sequences "
+#                        "shorter than this will be padded.")
+#    parser.add_argument("--doc_stride", default=128, type=int,
+#                        help="When splitting up a long document into chunks, "
+#                        "how much stride to take between chunks.")
+#    parser.add_argument('--labels_file',
+#                        required=True,
+#                        help="File with all NER classes to be considered, one "
+#                        "per line.")
+#    parser.add_argument('--scheme',
+#                        default='bio', help='NER tagging scheme (BIO|BILUO).')
+#    parser.add_argument('--no_crf',
+#                        action='store_true',
+#                        help='Remove the CRF layer (use plain BERT or '
+#                        'BERT-LSTM).')
+#    parser.add_argument('--pooler',
+#                        default='last',
+#                        help='Pooling strategy for extracting BERT encoded '
+#                        'features from last BERT layers. '
+#                        'One of "last", "sum" or "concat".')
+#    parser.add_argument('--freeze_bert',
+#                        action='store_true',
+#                        help="Freeze BERT layers' parameters. If True, uses "
+#                        "either a BERT-LSTM or BERT-LSTM-CRF model.")
+#    parser.add_argument('--lstm_hidden_size',
+#                        type=int,
+#                        default=100,
+#                        help=('Hidden dimension of the LSTM (only used when '
+#                              'the BERT model is frozen.'))
+#    parser.add_argument('--lstm_layers',
+#                        type=int,
+#                        default=1,
+#                        help=('Number of LSTM layers (only used when the BERT '
+#                              'model is frozen.'))
+#    parser.add_argument('--no_cuda', action='store_true',
+#                        help='Disables CUDA devices for inference.')
+#    parser.add_argument('--batch_size', type=int,
+#                        default=1, help='Batch size.')
+#    parser.add_argument('--verbose_logging', action='store_true')
+#
+#    args = parser.parse_args()
+#    args.local_rank = -1
+#
+#    input_text = ''
+#    if args.input_file and args.input_file.endswith('.txt'):
+#        with open(args.input_file, 'r') as f:
+#            input_text = f.read()
+#    run_inference(args, input_text)
